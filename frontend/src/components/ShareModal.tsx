@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { LinkIcon, Trash2, UserPlus, X } from 'lucide-react';
 
@@ -35,7 +35,7 @@ export default function ShareModal({ fileId, onClose }: ShareModalProps) {
       const response = await axios.get(`http://localhost:8000/files/${fileId}/permissions`, apiConfig);
       setPermissions(response.data);
     } catch (error) {
-      toast.error('Could not load permissions.');
+      toast.error('Could not load existing permissions.');
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +58,8 @@ export default function ShareModal({ fileId, onClose }: ShareModalProps) {
       setEmail('');
       fetchPermissions(); // Refresh the list
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to share file.', { id: toastId });
+      const axiosError = error as AxiosError<{ error: string }>;
+      toast.error(axiosError.response?.data?.error || 'Failed to share file.', { id: toastId });
     }
   };
 
@@ -117,7 +118,7 @@ export default function ShareModal({ fileId, onClose }: ShareModalProps) {
 
         <hr className="my-4 dark:border-gray-600" />
 
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2 mb-4 h-32 overflow-y-auto">
           <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">People with access</h3>
           {isLoading ? <p className="text-sm text-gray-500">Loading...</p>
            : permissions.length > 0 ? (

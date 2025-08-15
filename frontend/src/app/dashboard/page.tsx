@@ -5,6 +5,7 @@ import FilePreviewModal from '@/components/FilePreviewModal';
 import ShareModal from '@/components/ShareModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import UploadZone from '@/components/UploadZone';
+import { useWebSocket } from '@/providers/WebSocketProvider';
 import axios from 'axios';
 import {
   Clock, Crown,
@@ -24,8 +25,17 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { useWebSocket } from '@/providers/WebSocketProvider';
 type SortOption = 'name' | 'created_at' | 'size';
+
+// Shape returned by /search for files and folders
+type SearchResultItem = {
+  id: string;
+  name: string;
+  created_at: string;
+  mime_type?: string | null; // present for files
+  size?: number | null;      // present for files
+  is_starred?: boolean;      // may be absent; default to false in UI
+};
 
 interface ItemType {
   item_id: string;
