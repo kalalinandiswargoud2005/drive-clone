@@ -28,14 +28,7 @@ import { toast } from 'react-hot-toast';
 type SortOption = 'name' | 'created_at' | 'size';
 
 // Shape returned by /search for files and folders
-type SearchResultItem = {
-  id: string;
-  name: string;
-  created_at: string;
-  mime_type?: string | null; // present for files
-  size?: number | null;      // present for files
-  is_starred?: boolean;      // may be absent; default to false in UI
-};
+
 
 interface ItemType {
   item_id: string;
@@ -50,7 +43,7 @@ interface BreadcrumbType {
   id: string;
   name: string;
 }
-
+interface SearchResultItem { id: string; [key: string]: any; }
 function DashboardContent() {
   const [folders, setFolders] = useState<ItemType[]>([]);
   const [files, setFiles] = useState<ItemType[]>([]);
@@ -100,8 +93,8 @@ const ws = useWebSocket();
     if (!token) { router.push('/login'); return; }
     try {
       const response = await axios.get(`http://localhost:8000/search?q=${query}`, { headers: { Authorization: `Bearer ${token}` } });
-       const normalizedFolders = response.data.folders.map((item: SearchResultItem) => ({ ...item, item_id: item.id }));
-        const normalizedFiles = response.data.files.map((item: SearchResultItem) => ({ ...item, item_id: item.id }));
+      const normalizedFolders = response.data.folders.map((item: SearchResultItem) => ({ ...item, item_id: item.id }));
+      const normalizedFiles = response.data.files.map((item: SearchResultItem) => ({ ...item, item_id: item.id }));
       setFolders(normalizedFolders);
       setFiles(normalizedFiles);
     } catch (error) {
