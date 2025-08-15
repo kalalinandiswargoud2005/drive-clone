@@ -90,9 +90,8 @@ const ws = useWebSocket();
     if (!token) { router.push('/login'); return; }
     try {
       const response = await axios.get(`http://localhost:8000/search?q=${query}`, { headers: { Authorization: `Bearer ${token}` } });
-      const normalizedFolders = response.data.folders.map((item: any) => ({ ...item, item_id: item.id }));
-      const normalizedFiles = response.data.files.map((item: any) => ({ ...item, item_id: item.id }));
-      setBreadcrumbs([]);
+       const normalizedFolders = response.data.folders.map((item: SearchResultItem) => ({ ...item, item_id: item.id }));
+        const normalizedFiles = response.data.files.map((item: SearchResultItem) => ({ ...item, item_id: item.id }));
       setFolders(normalizedFolders);
       setFiles(normalizedFiles);
     } catch (error) {

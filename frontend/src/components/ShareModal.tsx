@@ -57,7 +57,7 @@ export default function ShareModal({ fileId, onClose }: ShareModalProps) {
       toast.success(`File shared with ${email}`, { id: toastId });
       setEmail('');
       fetchPermissions(); // Refresh the list
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to share file.', { id: toastId });
     }
   };
