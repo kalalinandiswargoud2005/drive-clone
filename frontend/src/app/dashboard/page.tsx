@@ -15,6 +15,7 @@ import {
   Home,
   LoaderCircle,
   LogOut,
+  Menu,
   Search,
   Share2,
   Star,
@@ -25,10 +26,9 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+
 type SortOption = 'name' | 'created_at' | 'size';
-
-// Shape returned by /search for files and folders
-
 
 interface ItemType {
   item_id: string;
@@ -44,6 +44,7 @@ interface BreadcrumbType {
   name: string;
 }
 interface SearchResultItem { id: string; [key: string]: any; }
+
 function DashboardContent() {
   const [folders, setFolders] = useState<ItemType[]>([]);
   const [files, setFiles] = useState<ItemType[]>([]);
@@ -55,7 +56,9 @@ function DashboardContent() {
   const [sortOption, setSortOption] = useState<SortOption>('name');
   const [isCreateFolderModalOpen, setCreateFolderModalOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<{ subscription_status?: string } | null>(null);
-const ws = useWebSocket();
+  const [isSidebarOpen, setSidebarOpen] = useState(false); // ✅ mobile sidebar state
+
+  const ws = useWebSocket();
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderId = searchParams.get('folderId') || null;
@@ -67,7 +70,7 @@ const ws = useWebSocket();
     try {
       const browseUrl = new URL('http://localhost:8000/browse');
       if (folderId) browseUrl.searchParams.append('folderId', folderId);
-      
+
       const browsePromise = axios.get(browseUrl.toString(), apiConfig);
       const breadcrumbPromise = folderId ? axios.get(`http://localhost:8000/folders/${folderId}/breadcrumbs`, apiConfig) : Promise.resolve({ data: [] });
       const profilePromise = axios.get('http://localhost:8000/profile', apiConfig);
@@ -101,7 +104,7 @@ const ws = useWebSocket();
       toast.error('Search failed.');
     }
   }, [fetchData, router]);
-  
+
   const handleMoveToTrash = async (itemId: string, type: 'file' | 'folder') => {
     if (!window.confirm(`Are you sure you want to move this ${type} to the trash?`)) return;
     const token = localStorage.getItem('authToken');
@@ -115,7 +118,7 @@ const ws = useWebSocket();
       toast.error('Failed to move to trash.', { id: toastId });
     }
   };
-  
+
   const handleToggleStar = async (item: ItemType, type: 'file' | 'folder') => {
     const token = localStorage.getItem('authToken');
     const isCurrentlyStarred = item.is_starred;
@@ -139,7 +142,7 @@ const ws = useWebSocket();
     router.push('/login');
     toast.success('You have been signed out.');
   };
-  
+
   const handleUpgrade = async () => {
     const token = localStorage.getItem('authToken');
     const toastId = toast.loading('Redirecting to checkout...');
@@ -159,7 +162,7 @@ const ws = useWebSocket();
     fetchData();
   }, [fetchData]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (ws) {
       ws.onmessage = (event: MessageEvent) => {
         const message = JSON.parse(event.data as string);
@@ -170,6 +173,7 @@ const ws = useWebSocket();
       };
     }
   }, [ws, folderId]);
+
   const sortedFolders = useMemo(() => [...folders].sort((a, b) => a.name.localeCompare(b.name)), [folders]);
   const sortedFiles = useMemo(() => {
     return [...files].sort((a, b) => {
@@ -185,66 +189,100 @@ const ws = useWebSocket();
     return <div className="flex items-center justify-center min-h-screen"><LoaderCircle className="w-12 h-12 animate-spin text-blue-600" /></div>;
   }
 
+  // ✅ Sidebar reusable component
+  const Sidebar = () => (
+    <nav className="w-full bg-white dark:bg-gray-800 p-4 flex flex-col h-full border-r dark:border-gray-700">
+      <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-500 mb-8">Zenith Drive</h1>
+      <button onClick={() => setCreateFolderModalOpen(true)} className="w-full mb-8 px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 flex items-center justify-center gap-2 transition-colors">
+        <FolderPlus className="w-5 h-5" />New Folder
+      </button>
+      <ul className="space-y-2">
+        <li><Link href="/dashboard" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><HardDrive className="w-5 h-5" /><span>My Drive</span></Link></li>
+        <li><Link href="/shared" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Users className="w-5 h-5" /><span>Shared with me</span></Link></li>
+        <li><Link href="/recent" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Clock className="w-5 h-5" /><span>Recent</span></Link></li>
+        <li><Link href="/starred" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Star className="w-5 h-5" /><span>Starred</span></Link></li>
+        <li><Link href="/trash" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Trash2 className="w-5 h-5" /><span>Trash</span></Link></li>
+      </ul>
+      <div className="mt-auto">
+        {userProfile?.subscription_status === 'pro' ? (
+          <div className="text-center p-2 rounded-lg bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 font-semibold">Zenith Pro Drive</div>
+        ) : (
+          <button onClick={handleUpgrade} className="w-full px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg shadow-md hover:from-yellow-500 hover:to-orange-600 flex items-center justify-center gap-2 font-semibold transition-all">
+            <Crown className="w-5 h-5" />Upgrade to Pro
+          </button>
+        )}
+      </div>
+    </nav>
+  );
+
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <nav className="w-64 bg-white dark:bg-gray-800 p-4 border-r dark:border-gray-700 flex-col hidden md:flex">
-        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-500 mb-8">Zenith Drive</h1>
-        <button onClick={() => setCreateFolderModalOpen(true)} className="w-full mb-8 px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 flex items-center justify-center gap-2 transition-colors">
-          <FolderPlus className="w-5 h-5" />New Folder
-        </button>
-        <ul className="space-y-2">
-          <li><Link href="/dashboard" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><HardDrive className="w-5 h-5" /><span>My Drive</span></Link></li>
-          <li><Link href="/shared" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Users className="w-5 h-5" /><span>Shared with me</span></Link></li>
-          <li><Link href="/recent" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Clock className="w-5 h-5" /><span>Recent</span></Link></li>
-          <li><Link href="/starred" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Star className="w-5 h-5" /><span>Starred</span></Link></li>
-          <li><Link href="/trash" className="flex items-center gap-3 p-2 rounded-md font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"><Trash2 className="w-5 h-5" /><span>Trash</span></Link></li>
-        </ul>
-        <div className="mt-auto">
-          {userProfile?.subscription_status === 'pro' ? (
-            <div className="text-center p-2 rounded-lg bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 font-semibold">Zenith Pro Drive</div>
-          ) : (
-            <button onClick={handleUpgrade} className="w-full px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg shadow-md hover:from-yellow-500 hover:to-orange-600 flex items-center justify-center gap-2 font-semibold transition-all">
-              <Crown className="w-5 h-5" />Upgrade to Pro
-            </button>
-          )}
-        </div>
-      </nav>
+    <div className="h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+      {/* ✅ Mobile Sidebar (Drawer) */}
+      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out md:hidden`}>
+        <Sidebar />
+      </div>
+      {isSidebarOpen && <div className="fixed inset-0 bg-black opacity-50 z-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-800 shadow-sm p-4 flex justify-between items-center border-b dark:border-gray-700">
-          <nav>
-            <ol className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-              <li><Link href="/dashboard" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400"><Home className="w-4 h-4" /><span>Home</span></Link></li>
-              {breadcrumbs.map((crumb) => (<li key={crumb.id} className="flex items-center space-x-2"><span>/</span><Link href={`/dashboard?folderId=${crumb.id}`} className="hover:text-blue-600 dark:hover:text-blue-400">{crumb.name}</Link></li>))}
-            </ol>
-          </nav>
-          <div className="flex items-center gap-4">
-            <div className="relative w-full max-w-xs">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
-              <input
-  type="text"
-  placeholder="Search..."
-  value={searchQuery}
-  onChange={(e) => handleSearch(e.target.value)}
-  className="w-full pl-10 pr-4 py-2 border rounded-full bg-gray-50 focus:bg-gray focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-/>
-            </div>
-            <ThemeToggle />
-            <button onClick={handleSignOut} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
-          </div>
-        </header>
+      {/* ✅ Resizable Desktop Layout */}
+      <PanelGroup direction="horizontal" className="flex h-screen">
+        {/* Desktop Sidebar */}
+        <Panel defaultSize={20} minSize={15} className="max-w-[300px] hidden md:block">
+          <Sidebar />
+        </Panel>
+        <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 transition-colors hidden md:block" />
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-          <div className="flex justify-end items-center mb-8">
-            <div className="flex items-center gap-2">
-              <label htmlFor="sort" className="text-sm font-medium text-gray-600 dark:text-gray-300">Sort by:</label>
-              <select id="sort" value={sortOption} onChange={(e) => setSortOption(e.target.value as SortOption)} className="pl-3 pr-8 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                <option value="name">Name</option>
-                <option value="created_at">Date Created</option>
-                <option value="size">Size</option>
-              </select>
-            </div>
-          </div>
+        {/* Main Content */}
+        <Panel>
+          <div className="flex-1 flex flex-col overflow-hidden h-full">
+            <header className="bg-white dark:bg-gray-800 shadow-sm p-4 flex justify-between items-center border-b dark:border-gray-700">
+              <div className="flex items-center gap-4">
+                {/* ✅ Hamburger Menu */}
+                <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2">
+                  <Menu className="w-6 h-6" />
+                </button>
+
+                {/* Breadcrumbs */}
+                <nav>
+                  <ol className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <li><Link href="/dashboard" className="flex items-center gap-2 hover:text-blue-600 dark:hover:text-blue-400"><Home className="w-4 h-4" /><span>Home</span></Link></li>
+                    {breadcrumbs.map((crumb) => (
+                      <li key={crumb.id} className="flex items-center space-x-2">
+                        <span>/</span>
+                        <Link href={`/dashboard?folderId=${crumb.id}`} className="hover:text-blue-600 dark:hover:text-blue-400">{crumb.name}</Link>
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="relative w-full max-w-xs">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border rounded-full bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <ThemeToggle />
+                <button onClick={handleSignOut} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
+              </div>
+            </header>
+
+            <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+              <div className="flex justify-end items-center mb-8">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="sort" className="text-sm font-medium text-gray-600 dark:text-gray-300">Sort by:</label>
+                  <select id="sort" value={sortOption} onChange={(e) => setSortOption(e.target.value as SortOption)} className="pl-3 pr-8 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                    <option value="name">Name</option>
+                    <option value="created_at">Date Created</option>
+                    <option value="size">Size</option>
+                  </select>
+                </div>
+              </div>
+
           <div className="mb-8"><UploadZone folderId={folderId} onUploadSuccess={fetchData} /></div>
           
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Folders</h2>
@@ -258,6 +296,8 @@ const ws = useWebSocket();
           </div>
         </main>
       </div>
+      </Panel>
+      </PanelGroup>
 
       {selectedFileForShare && <ShareModal fileId={selectedFileForShare.item_id} onClose={() => setSelectedFileForShare(null)} />}
       {selectedFileForPreview && <FilePreviewModal file={selectedFileForPreview} onClose={() => setSelectedFileForPreview(null)} />}
