@@ -221,7 +221,13 @@ const ws = useWebSocket();
           <div className="flex items-center gap-4">
             <div className="relative w-full max-w-xs">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
-              <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => handleSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 rounded-full bg-gray-50 dark:bg-gray-700 dark:text-white focus:bg-white focus:ring-2 focus:ring-blue-500"/>
+              <input
+  type="text"
+  placeholder="Search..."
+  value={searchQuery}
+  onChange={(e) => handleSearch(e.target.value)}
+  className="w-full pl-10 pr-4 py-2 border rounded-full bg-gray-50 focus:bg-gray focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+/>
             </div>
             <ThemeToggle />
             <button onClick={handleSignOut} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>

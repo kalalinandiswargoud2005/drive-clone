@@ -229,6 +229,41 @@ app.post('/files/upload', authenticateToken, upload.single('file'), async (req: 
     }
 });
 
+// Add this route to backend/src/index.ts
+
+app.get('/files/:fileId/shareable-link', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    const { fileId } = req.params;
+    const owner_id = req.user!.userId;
+
+    try {
+        // This query should check for ownership OR if the file is shared with the user.
+        // For simplicity in this MVP, we only check for ownership.
+        const { data: file, error: fileError } = await supabase
+            .from('files')
+            .select('storage_path')
+            .eq('id', fileId)
+            .eq('owner_id', owner_id)
+            .single();
+        
+        if (fileError || !file) {
+            return res.status(404).json({ error: 'File not found or you do not have permission.' });
+        }
+
+        // Create a temporary, secure URL to the file in storage
+        const { data, error: urlError } = await supabase
+            .storage
+            .from('files')
+            .createSignedUrl(file.storage_path, 3600); // URL is valid for 1 hour (3600 seconds)
+        
+        if (urlError) throw urlError;
+
+        res.json({ signedUrl: data.signedUrl });
+
+    } catch (error) {
+        console.error('Shareable link error:', error);
+        res.status(500).json({ error: 'Failed to create shareable link.' });
+    }
+});
 app.delete('/files/:fileId', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     const { fileId } = req.params;
     try {
